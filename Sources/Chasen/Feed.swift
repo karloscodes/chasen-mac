@@ -14,7 +14,7 @@ final class Feed {
     /// The whisk, from -1 to 1, while a change ships.
     private(set) var sway = 0.0
 
-    var mood: Mood { overview?.mood ?? .asking }
+    var mood: Mood { overview?.mood ?? (problem == nil ? .asking : .stopped) }
 
     /// Called with the news of each new overview.
     @ObservationIgnored var onNews: ([News]) -> Void = { _ in }

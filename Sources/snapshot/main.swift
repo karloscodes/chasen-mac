@@ -9,6 +9,9 @@ import UniformTypeIdentifiers
 // snapshot panels <directory>       the panel in each state, with sample
 //                                   servers, and the menu bar icon: PNG files
 //                                   to see the app without a Mac. CI keeps them.
+//                                   ImageRenderer draws SwiftUI only: a native
+//                                   field, like the address of the login, is a
+//                                   yellow box here.
 
 let usage = "Usage: snapshot icon <file.png> <size> | snapshot panels <directory>\n"
 

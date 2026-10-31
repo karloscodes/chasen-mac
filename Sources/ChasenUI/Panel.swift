@@ -48,13 +48,13 @@ public struct Panel: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Header(mood: overview?.mood ?? .asking, sway: sway)
+            Header(mood: overview?.mood ?? (problem == nil ? .asking : .stopped), sway: sway)
             Rule()
             content
             Rule()
             Footer(about: about, atLogin: $atLogin, actions: actions)
         }
-        .frame(width: 380)
+        .frame(width: 400)
         .font(Theme.mono())
         .foregroundStyle(Theme.text)
         .background(Theme.background)
@@ -80,9 +80,11 @@ public struct Panel: View {
     }
 
     func servers(_ overview: Overview) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        // One column of names for every server, so the versions line up.
+        let name = min(16, overview.servers.flatMap(\.apps).map(\.app.count).max() ?? 0)
+        return VStack(alignment: .leading, spacing: 0) {
             ForEach(overview.servers) { server in
-                ServerSection(server: server, actions: actions, now: now)
+                ServerSection(server: server, name: name, actions: actions, now: now)
             }
         }
         .padding(.bottom, 8)
@@ -162,6 +164,8 @@ struct Cursor: View {
 
 struct ServerSection: View {
     let server: Overview.Server
+    /// The width of the column of names, in characters.
+    let name: Int
     let actions: PanelActions
     let now: Date
 
@@ -185,7 +189,6 @@ struct ServerSection: View {
                     .padding(.horizontal, 14)
                     .padding(.bottom, 4)
             }
-            let name = min(16, server.apps.map(\.app.count).max() ?? 0)
             ForEach(server.apps) { app in
                 AppRow(app: app, name: name, actions: actions, now: now)
             }
@@ -212,12 +215,23 @@ struct AppRow: View {
                 Text(app.app).frame(width: columns(name), alignment: .leading).lineLimit(1)
                 detail
                 Spacer(minLength: 0)
-                Text(hint).font(Theme.mono(11)).foregroundStyle(Theme.dim).opacity(hover || copied ? 1 : 0)
             }
             .padding(.horizontal, 14)
             .frame(height: 24)
             .contentShape(Rectangle())
             .background(hover ? Theme.surface : .clear)
+            // The hint covers the end of the row: it takes no room from the address.
+            .overlay(alignment: .trailing) {
+                if (hover || copied) && !hint.isEmpty {
+                    Text(hint)
+                        .font(Theme.mono(11))
+                        .foregroundStyle(Theme.secondary)
+                        .padding(.leading, 12)
+                        .padding(.trailing, 14)
+                        .frame(maxHeight: .infinity)
+                        .background(Theme.surface)
+                }
+            }
         }
         .buttonStyle(.plain)
         .onHover { hover = $0 }
@@ -365,7 +379,6 @@ struct Problem: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("chasen stopped").foregroundStyle(Theme.error)
             Text(text)
                 .font(Theme.mono(11))
                 .foregroundStyle(Theme.secondary)

@@ -19,13 +19,15 @@ public enum Mark {
         return (Double(i) - Double(tines.count - 1) / 2) * 0.4 * up + sway * 0.8 * up
     }
 
-    /// The cells from the top left, in cells. x moves in half cells, so a
-    /// cell stays sharp on a Retina screen at one point for each cell.
-    public static func cells(sway: Double = 0) -> [(x: Double, y: Int)] {
+    /// The cells from the top left, in cells. A small mark snaps x to half
+    /// cells, so a cell stays sharp on a Retina screen at one point for each
+    /// cell. A large one, like the icon, keeps the curve of the tines.
+    public static func cells(sway: Double = 0, snap: Bool = true) -> [(x: Double, y: Int)] {
         var cells: [(x: Double, y: Int)] = []
         for (i, column) in tines.enumerated() {
             for row in 0..<tineRows {
-                cells.append((((Double(column) + flare(i, row, sway: sway)) * 2).rounded() / 2, row))
+                let x = Double(column) + flare(i, row, sway: sway)
+                cells.append((snap ? (x * 2).rounded() / 2 : x, row))
             }
         }
         for part in solid {
@@ -42,9 +44,9 @@ public enum Mark {
     public static let left = 2.0
 
     /// Draws the mark in a context whose y goes down.
-    public static func draw(in context: CGContext, at origin: CGPoint, cell: CGFloat, gap: CGFloat = 0, color: CGColor, sway: Double = 0) {
+    public static func draw(in context: CGContext, at origin: CGPoint, cell: CGFloat, gap: CGFloat = 0, color: CGColor, sway: Double = 0, snap: Bool = true) {
         context.setFillColor(color)
-        for c in cells(sway: sway) {
+        for c in cells(sway: sway, snap: snap) {
             context.fill(CGRect(x: origin.x + (c.x + left) * cell + gap / 2, y: origin.y + CGFloat(c.y) * cell + gap / 2, width: cell - gap, height: cell - gap))
         }
     }
@@ -90,9 +92,9 @@ public enum Mark {
         context.strokePath()
 
         // At rest the mark spans the columns -1 to 13: 15 cells.
-        let cell = (36 * s).rounded()
+        let cell = (40 * s).rounded()
         let origin = CGPoint(x: (512 * s - 7.5 * cell - (left - 1) * cell).rounded(), y: (512 * s - 7 * cell).rounded())
-        draw(in: context, at: origin, cell: cell, gap: max(1, (3 * s).rounded()), color: .hex(0xf5b83d))
+        draw(in: context, at: origin, cell: cell, gap: max(1, (3 * s).rounded()), color: .hex(0xf5b83d), snap: false)
         return context.makeImage()
     }
 }

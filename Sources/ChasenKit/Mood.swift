@@ -27,6 +27,9 @@ public struct Mood: Equatable, Sendable {
 
     /// Before the first answer of the servers.
     public static let asking = Mood(level: .empty, busy: false, line: "asking your servers")
+
+    /// The CLI stopped, and starts again soon.
+    public static let stopped = Mood(level: .warning, busy: false, line: "chasen stopped")
 }
 
 extension Overview {
