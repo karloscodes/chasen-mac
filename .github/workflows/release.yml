@@ -1,0 +1,47 @@
+# A tag v* makes a release: the disk image of the app, and checksums.txt. A
+# tag with a hyphen (v0.2.0-rc.1) is a pre-release, which releases/latest
+# skips.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+# Read only by default: only the job that publishes can write the release.
+permissions:
+  contents: read
+
+jobs:
+  # The same gate as CI, so a tag on a red commit releases nothing. A release
+  # is made only from a commit of main.
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The tag is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - run: swift test
+
+  release:
+    needs: test
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: bin/build "$GITHUB_REF_NAME"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd build
+          shasum -a 256 Chasen-*.dmg > checksums.txt
+          prerelease=false
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then prerelease=true; fi
+          gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes --prerelease="$prerelease" Chasen-*.dmg checksums.txt

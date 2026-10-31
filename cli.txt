@@ -1,0 +1,7 @@
+# The chasen CLI inside the app: its release, and the sha256 of its two macOS
+# builds. bin/build downloads them and checks them against these lines, so a
+# release that changes after this commit does not get in. To move to another
+# release: bin/cli <version>.
+v0.13.0
+3fd7d431c09f41e30b912cafa58ac85250e551314bee18b09843afae2e25da19  chasen-darwin-amd64
+51399f5cf4ace99abdb9101a42e669e4a82d9d7f634a6f96c0b0fab165aee0e0  chasen-darwin-arm64

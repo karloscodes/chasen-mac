@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# bin/cli <version>: put another release of the chasen CLI inside the app. It
+# writes cli.txt with the sha256 of the macOS builds of that release.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+version="v${1#v}"
+[ "$version" != "v" ] || { echo "Usage: bin/cli <version>" >&2; exit 2; }
+
+sums=$(curl -fsSL "https://github.com/karloscodes/chasen/releases/download/$version/checksums.txt" | grep -E '  chasen-darwin-(amd64|arm64)$')
+[ "$(wc -l <<<"$sums")" -eq 2 ] || { echo "$version has no two macOS builds in its checksums.txt" >&2; exit 1; }
+{
+  sed -n '/^#/p' cli.txt
+  echo "$version"
+  echo "$sums"
+} > cli.txt.new
+mv cli.txt.new cli.txt
+echo "cli.txt: chasen $version"

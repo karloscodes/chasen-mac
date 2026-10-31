@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# bin/build [version]: Chasen.app, with the chasen CLI of cli.txt inside, in
+# build/Chasen-<version>.dmg. It runs on macOS with the Swift of Xcode: on a
+# Mac, in CI, and in the release. The app is for Apple silicon and Intel.
+#
+# The app is signed ad hoc, not with a Developer ID: macOS asks once before
+# it opens it. See "Install" in the README.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+version="${1:-0.0.0}"
+version="${version#v}"
+cli=$(grep -m1 '^v' cli.txt)
+
+stage=$(mktemp -d)
+app="$stage/dmg/Chasen.app"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources" build
+
+echo "Building the app $version"
+swift build -c release --arch arm64 --arch x86_64 --product Chasen
+bin=$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)
+cp "$bin/Chasen" "$app/Contents/MacOS/Chasen"
+
+echo "Adding chasen $cli"
+for arch in amd64 arm64; do
+  curl -fsSLo "$stage/chasen-darwin-$arch" "https://github.com/karloscodes/chasen/releases/download/$cli/chasen-darwin-$arch"
+done
+(cd "$stage" && grep -E '  chasen-darwin-(amd64|arm64)$' "$OLDPWD/cli.txt" | shasum -a 256 -c -)
+lipo -create -output "$app/Contents/Helpers/chasen" "$stage/chasen-darwin-amd64" "$stage/chasen-darwin-arm64"
+
+echo "Drawing the icon"
+swift build -c release --product snapshot
+snapshot="$(swift build -c release --show-bin-path)/snapshot"
+icons="$stage/AppIcon.iconset"
+mkdir -p "$icons"
+for size in 16 32 128 256 512; do
+  "$snapshot" icon "$icons/icon_${size}x${size}.png" "$size"
+  "$snapshot" icon "$icons/icon_${size}x${size}@2x.png" "$((size * 2))"
+done
+iconutil -c icns -o "$app/Contents/Resources/AppIcon.icns" "$icons"
+
+# CFBundleVersion takes numbers only: 0.2.0-rc.1 is 0.2.0 there.
+cat > "$app/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>Chasen</string>
+  <key>CFBundleDisplayName</key><string>Chasen</string>
+  <key>CFBundleIdentifier</key><string>com.chasenhq.mac</string>
+  <key>CFBundleExecutable</key><string>Chasen</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>$version</string>
+  <key>CFBundleVersion</key><string>${version%%-*}</string>
+  <key>ChasenCLIVersion</key><string>${cli#v}</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>LSUIElement</key><true/>
+  <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
+  <key>NSHumanReadableCopyright</key><string>Apache License 2.0</string>
+</dict>
+</plist>
+PLIST
+plutil -lint "$app/Contents/Info.plist"
+
+codesign --force --sign - "$app/Contents/Helpers/chasen"
+codesign --force --sign - "$app"
+codesign --verify --strict --verbose=2 "$app"
+
+echo "Making the disk image"
+ln -s /Applications "$stage/dmg/Applications"
+hdiutil create -volname Chasen -srcfolder "$stage/dmg" -ov -format UDZO "build/Chasen-$version.dmg"
+echo "build/Chasen-$version.dmg"
