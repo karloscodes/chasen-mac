@@ -10,7 +10,8 @@ permissions:
 jobs:
   # The tests of what the app knows, then the app for Apple silicon and
   # Intel, in its disk image. The snapshots are the panel in each state and
-  # the icon, to see a change without a Mac.
+  # the icon, to see a change without a Mac. The smoke test starts the app
+  # from the disk image.
   macos:
     name: swift test and the disk image
     runs-on: macos-latest
@@ -23,6 +24,7 @@ jobs:
         run: |
           swift build -c release --product snapshot
           "$(swift build -c release --show-bin-path)/snapshot" panels build/snapshots
+      - run: bin/smoke build/Chasen-0.0.0.dmg build/snapshots/desktop.png
       - uses: actions/upload-artifact@v7
         with:
           name: Chasen

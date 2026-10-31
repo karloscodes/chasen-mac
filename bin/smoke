@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# bin/smoke <disk image> [screenshot.png]: opens the disk image as a person
+# does and starts the app from it. The app must carry a chasen for both kinds
+# of Mac, stay up, and start one `chasen overview --watch`. macOS only.
+set -euo pipefail
+dmg=$1
+shot=${2:-}
+
+mount=$(mktemp -d)
+hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount" > /dev/null
+stop() {
+  pkill -x Chasen || true
+  pkill -f 'chasen overview --watch' || true
+  sleep 1
+  hdiutil detach "$mount" -force -quiet || true
+}
+trap stop EXIT
+
+app="$mount/Chasen.app"
+test -L "$mount/Applications"
+codesign --verify --strict "$app"
+lipo "$app/Contents/MacOS/Chasen" -verify_arch arm64 x86_64
+lipo "$app/Contents/Helpers/chasen" -verify_arch arm64 x86_64
+"$app/Contents/Helpers/chasen" version
+
+open "$app"
+for _ in {1..30}; do
+  pgrep -f 'chasen overview --watch' > /dev/null && break
+  sleep 1
+done
+pgrep -f 'chasen overview --watch' > /dev/null || { echo "The app did not start chasen overview --watch"; exit 1; }
+sleep 3
+pgrep -x Chasen > /dev/null || { echo "The app stopped"; exit 1; }
+[ -z "$shot" ] || screencapture -x "$shot" || echo "No screenshot: this machine does not allow it"
+echo "The app runs, with chasen overview --watch"

@@ -6,6 +6,8 @@ Your Chasen servers in the menu bar of your Mac.
 
 A whisk sits in the menu bar. It is dim while every app is up. It sways while a deploy runs on any of your servers, also a deploy that your GitHub Actions started. It turns red when an app is down. A click opens the panel: each server, its apps, and its alerts. When a deploy ends, a notification says that the app is live, with the subject of its commit.
 
+![The panel of Chasen for Mac, while a deploy runs](docs/panel.png)
+
 [chasenhq.com](https://chasenhq.com) · [Docs](https://chasenhq.com/docs/)
 
 ## Install
@@ -44,6 +46,7 @@ It is a Swift package with no dependencies. On a Mac with Xcode:
 swift test                  # what the app knows: the overview, the menu bar, the news
 CHASEN_CLI=$(which chasen) swift run Chasen    # the app, with your chasen
 bin/build 0.1.0             # build/Chasen-0.1.0.dmg, with the chasen of cli.txt inside
+bin/smoke build/Chasen-0.1.0.dmg    # open the disk image and start the app from it
 bin/cli 0.14.0              # put another release of chasen inside the app
 ```
 
