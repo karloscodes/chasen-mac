@@ -10,7 +10,7 @@ struct MoodTests {
     func noServer() {
         let mood = Overview(servers: []).mood
 
-        #expect(mood == Mood(level: .empty, busy: false, line: "not logged in"))
+        #expect(mood == Mood(level: .empty, busy: false, line: "Not logged in"))
     }
 
     @Test("with every app up, it is calm and counts them")

@@ -1,0 +1,14 @@
+#!/bin/sh
+# bin/askpass: ssh runs this for each question of a login in the app, which has
+# no terminal: a new host key, a password, or a passphrase. It asks in a dialog
+# of macOS and prints the answer for ssh. bin/build puts it in the Resources of the app.
+[ "$SSH_ASKPASS_PROMPT" = none ] && exit 0 # a notice, like "touch your key"
+exec /usr/bin/osascript - "$1" <<'SCRIPT'
+on run {question}
+	tell me to activate
+	if question contains "(yes/no" then
+		return button returned of (display dialog question with title "Chasen" buttons {"no", "yes"} default button "no")
+	end if
+	return text returned of (display dialog question with title "Chasen" default answer "" with hidden answer)
+end run
+SCRIPT

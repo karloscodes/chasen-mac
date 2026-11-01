@@ -23,6 +23,17 @@ struct OverviewTests {
         #expect(server.alerts == [Overview.Alert(error: true, what: "The disk is 93% full", fix: "Make space")])
     }
 
+    @Test("takes the first domain on the internet: a .localhost domain answers only on the server")
+    func skipsLocalhostDomains() {
+        let app = Overview.App(app: "shop", version: "1.4.2", domains: ["shop.server.localhost", "shop.example.com"])
+        let local = Overview.App(app: "admin", version: "0.9.1", domains: ["admin.server.localhost"])
+
+        #expect(app.domain == "shop.example.com")
+        #expect(app.link == URL(string: "https://shop.example.com"))
+        #expect(local.domain == nil)
+        #expect(local.link == nil)
+    }
+
     @Test("reads a server from before the domains, and a server that does not answer")
     func readsOlderServers() throws {
         let line = #"{"servers":[{"name":"old.example.com","apps":[{"app":"blog","state":"Up","up":true,"version":"3f9a2c1"}],"alerts":[]},{"name":"203.0.113.5","error":"ssh: connect to host 203.0.113.5 port 22: Operation timed out","apps":[],"alerts":[]}]}"#
@@ -31,6 +42,17 @@ struct OverviewTests {
 
         #expect(overview.servers[0].apps[0].link == nil)
         #expect(overview.servers[1].error?.hasPrefix("ssh:") == true)
+    }
+
+    @Test("says what to do when ssh runs out of time")
+    func sshOutOfTime() {
+        let waiting = Overview.Server(name: "example.com", error: #"cannot reach the server through SSH (ssh://ubuntu@203.0.113.5): Post "http://chasen-server/v1/overview?arg=--json": context deadline exceeded. Does ssh log in to it, and does it have chasen-server 0.6 or newer?"#)
+        let closed = Overview.Server(name: "example.com", error: #"cannot reach the server through SSH (ssh://ubuntu@203.0.113.5): Post "http://chasen-server/v1/overview?arg=--json": EOF. Does ssh log in to it, and does it have chasen-server 0.6 or newer?"#)
+        let web = Overview.Server(name: "example.com", error: #"Post "https://api.example.com/v1/overview?arg=--json": context deadline exceeded"#)
+
+        #expect(waiting.advice == "ssh did not log in within 30 seconds. If 1Password asks for your key, approve it.")
+        #expect(closed.advice == nil)
+        #expect(web.advice == nil)
     }
 
     @Test("is nil for a line that is not an overview")

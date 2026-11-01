@@ -26,10 +26,10 @@ public struct Mood: Equatable, Sendable {
     }
 
     /// Before the first answer of the servers.
-    public static let asking = Mood(level: .empty, busy: false, line: "asking your servers")
+    public static let asking = Mood(level: .empty, busy: false, line: "Asking your servers")
 
     /// The CLI stopped, and starts again soon.
-    public static let stopped = Mood(level: .warning, busy: false, line: "chasen stopped")
+    public static let stopped = Mood(level: .warning, busy: false, line: "Chasen stopped")
 }
 
 extension Overview {
@@ -53,7 +53,7 @@ extension Overview {
         let line: String
         switch true {
         case servers.isEmpty:
-            line = "not logged in"
+            line = "Not logged in"
         case down.count == 1:
             line = "\(down[0].app) is down"
         case down.count > 1:
@@ -67,7 +67,7 @@ extension Overview {
         case warnings > 0:
             line = counted(warnings, "warning", "warnings")
         case apps.isEmpty:
-            line = "no apps yet"
+            line = "No apps yet"
         default:
             line = "\(counted(apps.count, "app", "apps")) up"
         }

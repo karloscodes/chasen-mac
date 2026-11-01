@@ -27,6 +27,7 @@ done
 (cd "$stage" && grep -E '  chasen-darwin-(amd64|arm64)$' "$OLDPWD/cli.txt" | shasum -a 256 -c -)
 lipo -create -output "$app/Contents/Helpers/chasen" "$stage/chasen-darwin-amd64" "$stage/chasen-darwin-arm64"
 chmod 755 "$app/Contents/Helpers/chasen" # a download is not executable, and lipo keeps that
+install -m 755 bin/askpass "$app/Contents/Resources/askpass"
 
 echo "Drawing the icon"
 swift build -c release --product snapshot

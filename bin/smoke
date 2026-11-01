@@ -19,9 +19,12 @@ trap stop EXIT
 app="$mount/Chasen.app"
 test -L "$mount/Applications"
 codesign --verify --strict "$app"
-lipo "$app/Contents/MacOS/Chasen" -verify_arch arm64 x86_64
-lipo "$app/Contents/Helpers/chasen" -verify_arch arm64 x86_64
+for arch in arm64 x86_64; do
+  lipo "$app/Contents/MacOS/Chasen" -verify_arch "$arch"
+  lipo "$app/Contents/Helpers/chasen" -verify_arch "$arch"
+done
 "$app/Contents/Helpers/chasen" version
+test -x "$app/Contents/Resources/askpass"
 
 open "$app"
 for _ in {1..30}; do

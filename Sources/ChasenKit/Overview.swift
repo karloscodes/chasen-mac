@@ -27,6 +27,14 @@ public struct Overview: Codable, Equatable, Sendable {
             self.apps = apps
             self.alerts = alerts
         }
+
+        /// What to do about an ask that ran out of time through SSH. ssh then
+        /// says nothing: the CLI ends it while it waits for a signature, and a
+        /// key in 1Password waits for a person. Nil for any other error.
+        public var advice: String? {
+            guard let error, error.contains("through SSH"), error.contains("context deadline exceeded") else { return nil }
+            return "ssh did not log in within 30 seconds. If 1Password asks for your key, approve it."
+        }
     }
 
     public struct App: Codable, Equatable, Sendable, Identifiable {
@@ -42,15 +50,23 @@ public struct Overview: Codable, Equatable, Sendable {
         public var domains: [String]?
         /// Where a private app listens on the server, like 127.0.0.1:8080.
         public var listen: String?
+        /// The state of the jobs container, when the app has one.
+        public var jobs: String?
+        /// The SQLite databases in the newest backup.
+        public var databases: Int?
+        /// The stamp of the newest backup, "" before the first, "off" with no backups.
+        public var backup: String?
+        /// The live replica: "live", "behind", or "off". A server from before it leaves it out.
+        public var replica: String?
 
         public var id: String { app }
 
         enum CodingKeys: String, CodingKey {
-            case app, state, up, version, running, since, domains
+            case app, state, up, version, running, since, domains, jobs, databases, backup, replica
             case listen = "private"
         }
 
-        public init(app: String, state: String = "Up 2 hours", up: Bool = true, version: String, running: String? = nil, since: String? = nil, domains: [String]? = nil, listen: String? = nil) {
+        public init(app: String, state: String = "Up 2 hours", up: Bool = true, version: String, running: String? = nil, since: String? = nil, domains: [String]? = nil, listen: String? = nil, jobs: String? = nil, databases: Int? = nil, backup: String? = nil, replica: String? = nil) {
             self.app = app
             self.state = state
             self.up = up
@@ -59,6 +75,10 @@ public struct Overview: Codable, Equatable, Sendable {
             self.since = since
             self.domains = domains
             self.listen = listen
+            self.jobs = jobs
+            self.databases = databases
+            self.backup = backup
+            self.replica = replica
         }
     }
 
@@ -105,13 +125,19 @@ extension Overview.App {
         return String(running[running.index(after: space)...])
     }
 
+    /// The domain of the app on the internet, or nil for a private app. The
+    /// proxy also serves a .localhost name, which answers only on the server.
+    public var domain: String? {
+        domains?.first { $0 != "localhost" && !$0.hasSuffix(".localhost") }
+    }
+
     /// The address of the app on the internet, or nil for a private app.
     public var link: URL? {
-        domains?.first.flatMap { URL(string: "https://" + $0) }
+        domain.flatMap { URL(string: "https://" + $0) }
     }
 
     /// Where the app answers: its domain, or its address on the server.
     public var address: String? {
-        domains?.first ?? listen
+        domain ?? listen
     }
 }
