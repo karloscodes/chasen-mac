@@ -13,6 +13,9 @@ final class Feed {
     private(set) var problem: String?
     /// The whisk, from -1 to 1, while a change ships.
     private(set) var sway = 0.0
+    /// The last lines of stderr: why the CLI stopped, or what ssh said about a
+    /// server that does not answer. The overview does not have those words.
+    private(set) var said: [String] = []
 
     var mood: Mood { overview?.mood ?? (problem == nil ? .asking : .stopped) }
 
@@ -23,8 +26,6 @@ final class Feed {
     @ObservationIgnored private var input: FileHandle?
     @ObservationIgnored private var motion: Timer?
     @ObservationIgnored private var stopping = false
-    /// The last lines of stderr: why the CLI stopped.
-    @ObservationIgnored private var said: [String] = []
 
     func start() {
         guard process == nil else { return }
@@ -57,23 +58,24 @@ final class Feed {
         self.input = input.fileHandleForWriting
         said = []
 
-        Task {
-            for try await line in output.fileHandleForReading.bytes.lines {
-                if let overview = Overview.line(line) {
-                    receive(overview)
-                }
-            }
+        output.fileHandleForReading.readLines { [weak self] line in
+            guard let overview = Overview.line(line) else { return }
+            Task { @MainActor in self?.receive(overview) }
         }
-        Task {
-            for try await line in errors.fileHandleForReading.bytes.lines {
-                said = Array((said + [line]).suffix(5))
-            }
+        errors.fileHandleForReading.readLines { [weak self] line in
+            Task { @MainActor in self?.heard(line) }
         }
     }
 
     /// Asks the servers now, not at the next minute: the panel opens.
     func askNow() {
         try? input?.write(contentsOf: Data("\n".utf8))
+    }
+
+    /// A login worked: the list is old, so the panel waits for a new one.
+    func reload() {
+        overview = nil
+        askNow()
     }
 
     func stop() {
@@ -83,11 +85,18 @@ final class Feed {
 
     private func receive(_ new: Overview) {
         problem = nil
+        if new.servers.allSatisfy({ $0.error == nil }) {
+            said = []
+        }
         if let old = overview {
             onNews(new.news(since: old))
         }
         overview = new
         whisk(new.mood.busy)
+    }
+
+    private func heard(_ line: String) {
+        said = said.hearing(line)
     }
 
     private func ended() {
@@ -129,5 +138,10 @@ enum CLI {
             return URL(fileURLWithPath: path)
         }
         return Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/chasen")
+    }
+
+    /// What ssh runs for a question during a login: bin/askpass.
+    static var askpass: URL {
+        Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/askpass")
     }
 }

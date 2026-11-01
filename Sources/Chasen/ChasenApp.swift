@@ -11,7 +11,7 @@ struct ChasenApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            Root(feed: delegate.feed)
+            Root(feed: delegate.feed, signin: delegate.signin, dashboard: delegate.dashboard)
         } label: {
             MenuIcon(feed: delegate.feed)
         }
@@ -22,18 +22,36 @@ struct ChasenApp: App {
 @MainActor
 final class Delegate: NSObject, NSApplicationDelegate {
     let feed = Feed()
+    let signin = Signin()
     let notices = Notices()
+    lazy var dashboard = DashboardWindow(board: Board(feed: feed), feed: feed)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // A write to a CLI that stopped must not stop the app.
         signal(SIGPIPE, SIG_IGN)
+        // t on the screen of the CLI changes the theme: read it when a window opens.
+        Look.shared.theme = ScreenTheme.load()
+        NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { Look.shared.theme = ScreenTheme.load() }
+        }
         notices.start()
         feed.onNews = { [notices] news in news.forEach(notices.post) }
+        signin.onLogin = { [feed] in feed.reload() }
         feed.start()
+        if ProcessInfo.processInfo.environment["CHASEN_DASHBOARD"] != nil {
+            dashboard.showBehind()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        signin.cancel()
         feed.stop()
+        dashboard.board.stop()
+    }
+
+    /// The app lives in the menu bar: the last window does not end it.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 }
 
@@ -47,19 +65,23 @@ struct MenuIcon: View {
 
 struct Root: View {
     let feed: Feed
+    let signin: Signin
+    let dashboard: DashboardWindow
     @State private var atLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
-        Panel(overview: feed.overview, problem: feed.problem, sway: feed.sway, about: about, atLogin: $atLogin, actions: PanelActions(
+        Panel(overview: feed.overview, problem: feed.problem, sway: feed.sway, login: signin.state, said: feed.said, about: about, atLogin: $atLogin, actions: PanelActions(
             open: { NSWorkspace.shared.open($0) },
             copy: { text in
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
             },
-            screen: { Terminal.run([]) },
-            login: { Terminal.run(["add", "server", $0]) },
+            addServer: { signin.open() },
+            login: { signin.start($0) },
+            cancelLogin: { signin.cancel() },
             retry: { feed.start() },
-            quit: { NSApp.terminate(nil) }
+            quit: { NSApp.terminate(nil) },
+            dashboard: { dashboard.show($0) }
         ))
         // The panel opens: ask the servers now.
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in feed.askNow() }

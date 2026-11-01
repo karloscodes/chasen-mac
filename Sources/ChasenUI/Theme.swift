@@ -1,17 +1,36 @@
+import ChasenKit
+import Observation
 import SwiftUI
 
-/// The colors and the type of chasenhq.com: a terminal pane. Stone greys,
-/// one accent, and mono for everything the machine says. The amber means
-/// "live": a change that runs. Red means a failure, never decoration.
+/// The theme that shows now. A view that reads a color of Theme follows it.
+@Observable
+public final class Look {
+    public static let shared = Look()
+    public var theme = ScreenTheme.chasen
+
+    public var noColor: Bool { theme == .monochrome }
+}
+
+/// The panel is a panel of macOS: the material of the system, light or dark,
+/// with its colors for text. What is Chasen's: the amber of the whisk, for an
+/// app that runs, and mono for all that the machine says. Red means a
+/// failure, never decoration. The themes of the CLI change those two colors.
 public enum Theme {
-    public static let background = Color(hex: 0x0c0a09)
-    public static let surface = Color(hex: 0x1c1917)
-    public static let line = Color(hex: 0x292524)
-    public static let text = Color(hex: 0xfafaf9)
-    public static let secondary = Color(hex: 0xa8a29e)
-    public static let dim = Color(hex: 0x8a837e)
-    public static let accent = Color(hex: 0xf5b83d)
-    public static let error = Color(hex: 0xf43f5e)
+    public static var accent: Color {
+        switch Look.shared.theme {
+        case .chasen: Color(hex: 0xf5b83d)
+        case .monochrome: .primary
+        case .terminal: .accentColor
+        }
+    }
+
+    public static var error: Color {
+        switch Look.shared.theme {
+        case .chasen: Color(hex: 0xf43f5e)
+        case .monochrome: .primary
+        case .terminal: .red
+        }
+    }
 
     public static func mono(_ size: CGFloat = 12, _ weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight, design: .monospaced)
