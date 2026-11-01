@@ -1,6 +1,7 @@
 # A tag v* makes a release: the disk image of the app, and checksums.txt. A
 # tag with a hyphen (v0.2.0-rc.1) is a pre-release, which releases/latest
-# skips.
+# skips. Chasen.dmg is the same disk image with a name that stays, so the link
+# of chasenhq.com, releases/latest/download/Chasen.dmg, works for each release.
 name: Release
 on:
   push:
@@ -42,7 +43,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd build
-          shasum -a 256 Chasen-*.dmg > checksums.txt
+          cp Chasen-*.dmg Chasen.dmg
+          shasum -a 256 Chasen*.dmg > checksums.txt
           prerelease=false
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then prerelease=true; fi
-          gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes --prerelease="$prerelease" Chasen-*.dmg checksums.txt
+          gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes --prerelease="$prerelease" Chasen-*.dmg Chasen.dmg checksums.txt
